@@ -1,50 +1,52 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-public class UIWaterController : MonoBehaviour
+public class Waterflow : MonoBehaviour
 {
-    // This property controls the fill amount of the water image
-    private static readonly int FillAmount = Shader.PropertyToID("_FillAmount");
+    [Header("UI References")]
+    [SerializeField] private Image waterbar;     // Current water fill
+    [SerializeField] private Image maxwaterbar;  // Optional background bar
 
-    [Header("Shader Properties")]
-    [SerializeField] private float waterSpeed;
-    [SerializeField] private float waterMagnitude;
+    [Header("Settings")]
+    [SerializeField] private float fillSpeed = 0.005f;   // Super slow fill speed
+    [SerializeField] private bool autoDrain = false;     // Enable/disable auto decrease
+    [SerializeField] private float drainRate = 0.001f;   // Super slow drain rate
 
-    [Header("Water Level")]
-    [SerializeField] private float currentWaterLevel;
-    [SerializeField] private float maxWaterLevel;
+    private float targetFill = 0f; // Target value (0 to 1)
 
-    private RawImage rawImage;
-    private Material waterMaterial;
-
-    private void Awake()
+    void Start()
     {
-        rawImage = GetComponent<RawImage>();
-        if (rawImage != null && rawImage.material != null)
+        // Start empty
+        waterbar.fillAmount = 10f;
+        if (maxwaterbar != null)
+            maxwaterbar.fillAmount = 1f; // Background always full
+    }
+
+    void Update()
+    {
+        // Smoothly move waterbar.fillAmount toward targetFill
+        waterbar.fillAmount = Mathf.MoveTowards(
+            waterbar.fillAmount,
+            targetFill,
+            fillSpeed * Time.deltaTime
+        );
+
+        // Optional: auto-drain water over time
+        if (autoDrain && targetFill > 0f)
         {
-            // Get an instance of the material
-            waterMaterial = rawImage.material;
-        }
-        else
-        {
-            Debug.LogError("RawImage component or its material not found. Please assign the UI_Water_Material.");
+            targetFill -= drainRate * Time.deltaTime;
+            targetFill = Mathf.Clamp01(targetFill);
         }
     }
 
+    // Call this from another script or button
     public void AddWater(float amount)
     {
-        // Increase the current water level, clamping it to the max
-        currentWaterLevel = Mathf.Clamp(currentWaterLevel - amount, 0, maxWaterLevel);
+        targetFill = Mathf.Clamp01(targetFill - amount); // More water = bar increases
     }
 
-    private void Update()
+    public void RemoveWater(float amount)
     {
-        if (waterMaterial != null)
-        {
-            // Update the shader properties with the values from the script
-            waterMaterial.SetFloat(FillAmount, currentWaterLevel);
-            waterMaterial.SetFloat("_Speed", waterSpeed); // This name is for the old shader, update it if you use a different one
-            waterMaterial.SetFloat("_Magnitude", waterMagnitude); // Same here
-        }
+        targetFill = Mathf.Clamp01(targetFill + amount); // Less water = bar decreases
     }
 }
